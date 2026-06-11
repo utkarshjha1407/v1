@@ -8,8 +8,8 @@ with feedback.
 
 ## Status
 
-- [x] **Phase 1 — Backend core** (this repo state): GitHub scraping, interview Q&A, AI scoring
-- [ ] **Phase 2 — Frontend**: Next.js + Supabase auth + interview/results pages
+- [x] **Phase 1 — Backend core**: GitHub scraping, interview Q&A, AI scoring
+- [x] **Phase 2 — Frontend**: Next.js + Supabase auth + landing/interview/results pages
 - [ ] **Phase 3 — Production**: Heroku + Vercel + custom domain + Sentry
 - [ ] **Phase 4 — Revenue**: 6 SEO practice pages, 12 blog posts, AdSense
 
@@ -26,6 +26,19 @@ uvicorn main:app --reload
 Without `DATABASE_URL` it uses a local SQLite file, so you can develop before
 Supabase is set up. For Supabase, run `backend/schema.sql` in the SQL editor
 and put the connection string in `.env`.
+
+## Run the frontend locally
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local   # defaults work for local dev
+npm run dev
+```
+
+Open http://localhost:3000 (backend must be running on :8000). Sign-in is
+hidden until the Supabase env vars are set, so the full interview flow works
+anonymously while you finish the Supabase Google OAuth setup.
 
 ## API
 
