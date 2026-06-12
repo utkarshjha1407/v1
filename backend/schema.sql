@@ -28,3 +28,22 @@ create table if not exists messages (
 
 create index if not exists idx_messages_interview on messages(interview_id);
 create index if not exists idx_interviews_user on interviews(user_id);
+
+-- Sync Google sign-ins from auth.users → public.users automatically.
+-- Run this after the tables above. Supabase Auth manages auth.users;
+-- this trigger keeps public.users in sync so the interviews FK works.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  insert into public.users (id, email)
+  values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
