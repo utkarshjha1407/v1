@@ -27,12 +27,13 @@ export interface NextQuestion {
 }
 
 export async function createInterview(
-  githubUrl: string,
+  options: { githubUrl?: string; skill?: string },
   interviewType: string,
   userId?: string
 ): Promise<{ interview_id: string; first_question: string }> {
   const { data } = await api.post("/api/interviews", {
-    github_url: githubUrl,
+    github_url: options.githubUrl ?? null,
+    skill: options.skill ?? null,
     interview_type: interviewType,
     user_id: userId ?? null,
   });

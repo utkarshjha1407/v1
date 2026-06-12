@@ -37,9 +37,10 @@ then a 0–10 score with feedback. Solo project following a revenue-first plan
 
 ## Commands
 
-- Backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload`
+- Backend: `cd backend && source .venv/bin/activate && uvicorn main:app --reload --host 0.0.0.0`
+  (WSL2 requires `--host 0.0.0.0` so the Windows browser can reach port 8000)
   (first time: `python3 -m venv .venv && pip install -r requirements.txt`,
-  copy `.env.example` → `.env`, set `GROQ_API_KEY`, optionally `GITHUB_TOKEN`)
+  copy `.env.example` → `.env`, set `GROQ_API_KEY`)
 - Frontend: `cd frontend && npm install && npm run dev` → localhost:3000
 - Verify frontend compiles: `cd frontend && npm run build`
 - API docs while backend runs: localhost:8000/docs

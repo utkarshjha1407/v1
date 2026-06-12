@@ -14,7 +14,10 @@ from db import Base, engine  # noqa: E402
 import models  # noqa: E402, F401  — registers tables on Base
 from routers import github_router, interviews  # noqa: E402
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[warning] Could not run create_all — DB may be unreachable at startup: {e}")
 
 app = FastAPI(title="InterviewAI API")
 

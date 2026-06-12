@@ -29,7 +29,10 @@ export default function InterviewPage() {
         else setInterview(iv);
       })
       .catch((err) => setError(errorMessage(err)));
-  }, [id, router]);
+  // router is a stable singleton in Next.js Pages Router — omitting it prevents
+  // React Strict Mode from double-firing this fetch on every render cycle.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

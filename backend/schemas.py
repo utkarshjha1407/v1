@@ -1,17 +1,21 @@
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator
+
+# Coerces UUID objects (returned by psycopg2 for uuid columns) to str
+UUIDStr = Annotated[str, BeforeValidator(str)]
 
 
 class InterviewCreate(BaseModel):
-    github_url: str
-    interview_type: str = "swe"  # 'swe' | 'dsa'
+    github_url: Optional[str] = None
+    skill: Optional[str] = None        # for skill-based mode (no GitHub needed)
+    interview_type: str = "swe"        # 'swe' | 'dsa'
     user_id: Optional[str] = None
 
 
 class InterviewCreated(BaseModel):
-    interview_id: str
+    interview_id: UUIDStr
     first_question: str
 
 
@@ -35,7 +39,7 @@ class NextQuestion(BaseModel):
 
 
 class InterviewOut(BaseModel):
-    id: str
+    id: UUIDStr
     interview_type: str
     status: str
     score: Optional[int] = None

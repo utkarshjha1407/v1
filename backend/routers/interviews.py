@@ -26,23 +26,31 @@ def _history(interview: models.Interview) -> list[dict]:
 @router.post("", response_model=schemas.InterviewCreated)
 @router.post("/", response_model=schemas.InterviewCreated, include_in_schema=False)
 async def create_interview(payload: schemas.InterviewCreate, db: Session = Depends(get_db)):
-    username = username_from_url(payload.github_url)
-    repos = await fetch_repos(username)
-    if not repos:
-        raise HTTPException(
-            status_code=422,
-            detail="No public non-fork repos found — interview needs projects to discuss",
-        )
+    if not payload.github_url and not payload.skill:
+        raise HTTPException(status_code=422, detail="Provide either a GitHub URL or a skill")
+
+    if payload.github_url:
+        username = username_from_url(payload.github_url)
+        repos = await fetch_repos(username)
+        if not repos:
+            raise HTTPException(
+                status_code=422,
+                detail="No public non-fork repos found — interview needs projects to discuss",
+            )
+        github_meta = {"username": username, "repos": repos}
+        question = ai.next_question(repos, [], payload.interview_type)
+    else:
+        github_meta = {"skill": payload.skill}
+        question = ai.skill_question(payload.skill, [], payload.interview_type)
 
     interview = models.Interview(
         user_id=payload.user_id,
-        github_meta={"username": username, "repos": repos},
+        github_meta=github_meta,
         interview_type=payload.interview_type,
     )
     db.add(interview)
     db.flush()
 
-    question = ai.next_question(repos, [], payload.interview_type)
     db.add(models.Message(interview_id=interview.id, role="assistant", content=question))
     db.commit()
 
@@ -73,8 +81,13 @@ def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = De
             is_final=True,
         )
 
-    repos = (interview.github_meta or {}).get("repos", [])
-    question = ai.next_question(repos, _history(interview), interview.interview_type)
+    meta = interview.github_meta or {}
+    skill = meta.get("skill")
+    repos = meta.get("repos", [])
+    if skill:
+        question = ai.skill_question(skill, _history(interview), interview.interview_type)
+    else:
+        question = ai.next_question(repos, _history(interview), interview.interview_type)
     db.add(models.Message(interview_id=interview.id, role="assistant", content=question))
     db.commit()
 
