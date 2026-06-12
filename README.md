@@ -1,83 +1,265 @@
 # InterviewAI
 
-Free, ad-supported AI mock-interview platform. Job seekers paste their GitHub URL and get a 5-question text interview personalised from their real repos, then a 0–10 score with feedback.
+**Free, AI-powered mock interview platform for job seekers.** Get personalized technical interviews based on your real GitHub projects, receive instant scores (0–10), and get detailed feedback to improve your interview skills.
 
-**Stack:** FastAPI + SQLAlchemy (Heroku) · Next.js 14 Pages Router (Vercel) · Supabase Postgres + Google OAuth · Groq LLM · ₹0 infra via GitHub Student Pack.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Status
+## Overview
 
-- [x] **Phase 1 — Backend**: GitHub scraping, interview Q&A, AI scoring (FastAPI)
-- [x] **Phase 2 — Frontend**: Next.js + interview/results flow, production build ready
-- [ ] **User test gate**: 5 complete self-interviews on localhost
-- [ ] **Supabase setup**: Schema + Google OAuth (run `backend/schema.sql`)
-- [ ] **Phase 3 — Deploy**: Heroku + Vercel + custom domain + Sentry
-- [ ] **Phase 4 — Revenue**: 6 SEO `/practice/[topic]` pages, 12 blog posts, privacy/about/contact pages, AdSense
+InterviewAI bridges the gap between coding practice and interview preparation. Simply paste your GitHub URL, answer 5 tailored questions drawn from your actual project experience, and get an AI-generated score with constructive feedback—all for free.
 
-## Run the backend locally
+Perfect for:
+- 👨‍💻 Developers prepping for technical interviews
+- 🚀 Portfolios with live GitHub projects
+- 💡 Getting interview feedback without a human interviewer
+- 🎯 Practice rounds before real interviews
 
+## Features
+
+- **GitHub-Powered Questions** — 5 interview questions generated from your actual repositories
+- **Real-Time Scoring** — Instant 0–10 score with detailed feedback
+- **Conversation-Style Interface** — Natural Q&A flow, not multiple choice
+- **Anonymous Practice** — No account required to practice (optional Google sign-in coming)
+- **Interview Transcripts** — View and share your full interview history and scores
+
+## Tech Stack
+
+| Component | Technology | Hosting |
+|-----------|-----------|---------|
+| Backend | FastAPI + SQLAlchemy + Groq LLM | Heroku |
+| Frontend | Next.js 14 (Pages Router) + Tailwind CSS | Vercel |
+| Database | PostgreSQL via Supabase | Supabase |
+| Auth | Google OAuth (optional) | Supabase Auth |
+| Infrastructure | ₹0 via GitHub Student Pack | - |
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- Node.js 18+
+- Git
+- [Groq API key](https://console.groq.com) (free)
+
+### Installation
+
+**1. Clone and navigate to the project**
 ```bash
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # add your GROQ_API_KEY (+ GITHUB_TOKEN recommended)
-uvicorn main:app --reload --host 0.0.0.0  # WSL2: add --host 0.0.0.0 to reach from Windows browser
+git clone <repo-url>
+cd v1
 ```
 
-Without `DATABASE_URL` it uses SQLite locally. For Supabase, run `backend/schema.sql` in the SQL editor and put the connection string in `.env`. Backend runs on `localhost:8000`.
+**2. Set up the backend**
+```bash
+cd backend
 
-## Run the frontend locally
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY
+```
+
+**3. Set up the frontend**
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
+
+# Configure environment
 cp .env.local.example .env.local
+# Defaults work for local development
+```
+
+### Running Locally
+
+**Terminal 1: Start the backend**
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn main:app --reload --host 0.0.0.0
+```
+
+Backend runs on `http://localhost:8000`  
+API docs available at `http://localhost:8000/docs`
+
+**Terminal 2: Start the frontend**
+```bash
+cd frontend
 npm run dev
 ```
 
-Opens http://localhost:3000 (backend must run on :8000). Auth UI hides and the app works anonymously until Supabase env vars are set — this graceful degradation is intentional for development.
+Frontend opens at `http://localhost:3000`
 
-## API
+**Note:** The app works anonymously without Supabase. Auth UI hides until env vars are set.
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/health` | GET | Health check (Heroku) |
-| `/api/github/profile?username=` | GET | Cleaned repo list for a user |
-| `/api/interviews` | POST | Create interview `{github_url, interview_type}` → id + first question |
-| `/api/interviews/{id}` | GET | Status, transcript, score |
-| `/api/interviews/{id}/message` | POST | Send answer `{content}` → next question (5 questions total) |
-| `/api/interviews/{id}/complete` | POST | Score the interview → `{score, feedback}` |
+## Usage
 
-Interactive docs at `http://localhost:8000/docs` when running.
+1. Navigate to `http://localhost:3000`
+2. Enter your GitHub URL (e.g., `https://github.com/username`)
+3. Answer 5 interview questions about your projects
+4. View your score, feedback, and transcript
 
-## Quick test flow
+## API Reference
 
+### Core Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/github/profile?username=<user>` | GET | Fetch user's repositories |
+| `/api/interviews` | POST | Start new interview |
+| `/api/interviews/{id}` | GET | Get interview status & transcript |
+| `/api/interviews/{id}/message` | POST | Submit answer, get next question |
+| `/api/interviews/{id}/complete` | POST | Complete interview & get score |
+
+### Request Examples
+
+**Create an interview**
 ```bash
-curl localhost:8000/api/health
-curl "localhost:8000/api/github/profile?username=<your-github>"
-curl -X POST localhost:8000/api/interviews -H 'Content-Type: application/json' \
-  -d '{"github_url": "https://github.com/<your-github>", "interview_type": "swe"}'
-# answer with the returned interview_id:
-curl -X POST localhost:8000/api/interviews/<id>/message -H 'Content-Type: application/json' \
-  -d '{"content": "my answer..."}'
-# after 5 questions:
-curl -X POST localhost:8000/api/interviews/<id>/complete
+curl -X POST http://localhost:8000/api/interviews \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "github_url": "https://github.com/username/repo",
+    "interview_type": "swe"
+  }'
 ```
 
-## Deployment (Phase 3)
+**Submit an answer**
+```bash
+curl -X POST http://localhost:8000/api/interviews/{id}/message \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "Your answer here..."}'
+```
 
-Backend: Heroku auto-deploy from GitHub (`backend/Procfile` in place). Set env vars as Config Vars.
-Frontend: Vercel (auto-deploy from GitHub).
+**Get interview results**
+```bash
+curl http://localhost:8000/api/interviews/{id}
+```
 
-## Architecture notes
+Full interactive docs at `http://localhost:8000/docs`
 
-- **Backend**: FastAPI + SQLAlchemy. Groq calls for questions (`GROQ_QUESTION_MODEL` env) and scoring (`GROQ_SCORING_MODEL`, defaults to llama-3.3-70b-versatile). CORS allows `localhost:3000` + `FRONTEND_ORIGIN` env.
-- **Frontend**: Next.js 14 Pages Router. `lib/api.ts` is the typed API client. `lib/supabase.ts` gracefully degrades when env vars unset.
-- **Interview flow**: 5-question loop. The "last question" sentinel reply is NOT stored in DB (max 5 assistant messages).
+## Project Structure
 
-## Conventions
+```
+.
+├── backend/
+│   ├── main.py                 # FastAPI app entry point
+│   ├── routers/
+│   │   ├── interviews.py       # Interview CRUD & messaging
+│   │   ├── github_router.py    # GitHub profile fetching
+│   │   └── ai.py               # Groq LLM integration
+│   ├── models.py               # SQLAlchemy models
+│   ├── schema.sql              # Supabase schema
+│   ├── requirements.txt         # Python dependencies
+│   └── Procfile                # Heroku deployment config
+│
+├── frontend/
+│   ├── pages/
+│   │   ├── index.tsx           # Landing page
+│   │   ├── interview/[id].tsx  # Interview chat UI
+│   │   └── results/[id].tsx    # Results & transcript
+│   ├── lib/
+│   │   ├── api.ts              # Typed API client
+│   │   └── supabase.ts         # Supabase client
+│   ├── package.json            # Node dependencies
+│   └── tsconfig.json           # TypeScript config
+│
+└── README.md                    # This file
+```
 
-- **Branch**: Work on `claude/admiring-albattani-n71zsi`.
-- **Secrets**: Only in `.env` / `.env.local` (gitignored). Production secrets in Heroku Config Vars / Vercel env.
-- **MVP discipline**: Text-only interviews. NO voice mode, no company dashboard. Revenue features (SEO pages, content, AdSense) take priority over polish.
-- **AdSense placement**: Only on results/practice/blog pages. NEVER on active interview or landing/login pages.
-- **Performance**: Keep Lighthouse ≥90 (no heavy client libs). Dependencies pinned in requirements.txt.
+## Development
+
+### Code Style
+- Python: PEP 8, enforced via `flake8`
+- TypeScript: ESLint + Prettier
+- Use meaningful variable/function names; minimal comments
+
+### Key Decisions
+- **Interview flow**: Fixed 5-question loop for consistency
+- **LLM backend**: Groq (fast, free tier sufficient)
+- **Frontend routing**: Pages Router (simpler than App Router for this phase)
+- **Database**: PostgreSQL via Supabase (relational, serverless)
+
+### Environment Variables
+
+**Backend (.env)**
+```
+GROQ_API_KEY=your_key_here
+GROQ_QUESTION_MODEL=mixtral-8x7b-32768
+GROQ_SCORING_MODEL=llama-3.3-70b-versatile
+DATABASE_URL=postgresql://...  # Optional; SQLite used if not set
+GITHUB_TOKEN=optional_github_pat
+FRONTEND_ORIGIN=http://localhost:3000
+```
+
+**Frontend (.env.local)**
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SUPABASE_URL=https://...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+## Roadmap
+
+- [x] Phase 1: Backend core (GitHub scraping, interview Q&A, AI scoring)
+- [x] Phase 2: Frontend (interview flow, results page)
+- [ ] Phase 3: Production deployment (Heroku + Vercel + custom domain)
+- [ ] Phase 4: Revenue features (SEO pages, blog, AdSense integration)
+
+## Deployment
+
+### Backend (Heroku)
+```bash
+heroku create your-app-name
+heroku config:set GROQ_API_KEY=your_key
+git push heroku main
+```
+
+`Procfile` is included for auto-detection. Set Config Vars for all environment variables.
+
+### Frontend (Vercel)
+```bash
+npm install -g vercel
+vercel
+```
+
+Set Environment Variables in Vercel dashboard matching `.env.local.example`.
+
+### Database (Supabase)
+1. Create Supabase project
+2. Run `backend/schema.sql` in SQL editor
+3. Set `DATABASE_URL` in backend env vars
+4. Configure Google OAuth in Supabase Auth settings
+
+## Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add feature'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+## License
+
+MIT License — see LICENSE file for details
+
+## Support
+
+- 📧 Issues: Open a GitHub issue
+- 💬 Questions: Create a discussion
+
+## Acknowledgments
+
+- Built with [Groq](https://groq.com) for fast LLM inference
+- GitHub Student Pack for free infra
+- [Supabase](https://supabase.com) for serverless PostgreSQL
+- [FastAPI](https://fastapi.tiangolo.com) and [Next.js](https://nextjs.org) communities
