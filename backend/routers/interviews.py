@@ -43,8 +43,12 @@ async def create_interview(payload: schemas.InterviewCreate, db: Session = Depen
         github_meta = {"skill": payload.skill}
         question = ai.skill_question(payload.skill, [], payload.interview_type)
 
-    if payload.user_id and not db.get(models.User, payload.user_id):
-        db.add(models.User(id=payload.user_id))
+    if payload.user_id:
+        user = db.get(models.User, payload.user_id)
+        if not user:
+            db.add(models.User(id=payload.user_id, github_url=payload.github_url))
+        elif payload.github_url and not user.github_url:
+            user.github_url = payload.github_url
         db.flush()
 
     interview = models.Interview(
