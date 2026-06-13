@@ -1,26 +1,27 @@
 # InterviewAI
 
-**Free, AI-powered mock interview platform for job seekers.** Get personalized technical interviews based on your real GitHub projects, receive instant scores (0–10), and get detailed feedback to improve your interview skills.
+**Free, AI-powered mock interview platform.** Practice with 5 tailored questions built from your real GitHub projects, or pick any skill and get interviewed on it directly. Receive an instant 0–10 score with honest feedback.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
-InterviewAI bridges the gap between coding practice and interview preparation. Simply paste your GitHub URL, answer 5 tailored questions drawn from your actual project experience, and get an AI-generated score with constructive feedback—all for free.
+InterviewAI gives you two ways to practice:
 
-Perfect for:
-- 👨‍💻 Developers prepping for technical interviews
-- 🚀 Portfolios with live GitHub projects
-- 💡 Getting interview feedback without a human interviewer
-- 🎯 Practice rounds before real interviews
+- **GitHub mode** — paste your profile URL and get questions drawn from your actual repos
+- **Skill mode** — pick a topic (Python, System Design, DSA, …) and start immediately, no GitHub account needed
+
+Both modes deliver 5 questions, a scored transcript, and a shareable results link. Everything runs on free-tier infrastructure.
 
 ## Features
 
-- **GitHub-Powered Questions** — 5 interview questions generated from your actual repositories
-- **Real-Time Scoring** — Instant 0–10 score with detailed feedback
-- **Conversation-Style Interface** — Natural Q&A flow, not multiple choice
-- **Anonymous Practice** — No account required to practice (optional Google sign-in coming)
-- **Interview Transcripts** — View and share your full interview history and scores
+- **Two interview modes** — GitHub-powered or skill-based (11 topics)
+- **AI scoring** — Instant 0–10 score with 2–3 sentences of specific feedback
+- **Conversation-style UI** — Natural Q&A flow, not multiple choice
+- **Anonymous by default** — No account required; optional Google sign-in saves history
+- **Shareable results** — Send your score link to anyone
+- **Rate limited** — 5 interviews/IP/hour to prevent abuse
+- **JWT-authenticated writes** — Signed-in users' interviews are protected from tampering
 
 ## Tech Stack
 
@@ -30,7 +31,7 @@ Perfect for:
 | Frontend | Next.js 14 (Pages Router) + Tailwind CSS | Vercel |
 | Database | PostgreSQL via Supabase | Supabase |
 | Auth | Google OAuth (optional) | Supabase Auth |
-| Infrastructure | ₹0 via GitHub Student Pack | - |
+| Infrastructure | ₹0 via GitHub Student Pack | — |
 
 ## Getting Started
 
@@ -38,12 +39,11 @@ Perfect for:
 
 - Python 3.9+
 - Node.js 18+
-- Git
 - [Groq API key](https://console.groq.com) (free)
 
 ### Installation
 
-**1. Clone and navigate to the project**
+**1. Clone the repo**
 ```bash
 git clone <repo-url>
 cd v1
@@ -52,95 +52,91 @@ cd v1
 **2. Set up the backend**
 ```bash
 cd backend
-
-# Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env and add your GROQ_API_KEY
+# Edit .env — at minimum set GROQ_API_KEY
 ```
 
 **3. Set up the frontend**
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Configure environment
 cp .env.local.example .env.local
-# Defaults work for local development
+# Defaults work for local dev; add Supabase vars to enable Google sign-in
 ```
 
 ### Running Locally
 
-**Terminal 1: Start the backend**
+**Terminal 1 — backend**
 ```bash
 cd backend
 source .venv/bin/activate
 uvicorn main:app --reload --host 0.0.0.0
 ```
+> `--host 0.0.0.0` is required on WSL2 so the Windows browser can reach port 8000.
 
-Backend runs on `http://localhost:8000`  
-API docs available at `http://localhost:8000/docs`
+Backend: `http://localhost:8000` · API docs: `http://localhost:8000/docs`
 
-**Terminal 2: Start the frontend**
+**Terminal 2 — frontend**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Frontend opens at `http://localhost:3000`
+Frontend: `http://localhost:3000`
 
-**Note:** The app works anonymously without Supabase. Auth UI hides until env vars are set.
+The app works fully without Supabase — auth UI hides until the env vars are set.
 
-## Usage
+## Skill Topics
 
-1. Navigate to `http://localhost:3000`
-2. Enter your GitHub URL (e.g., `https://github.com/username`)
-3. Answer 5 interview questions about your projects
-4. View your score, feedback, and transcript
+| Key | Topic |
+|-----|-------|
+| `python` | Python internals, async/await, GIL, packaging |
+| `javascript` | JS/TS event loop, closures, type system |
+| `java` | OOP, JVM, concurrency, Spring |
+| `go` | Goroutines, channels, interfaces, error handling |
+| `react` | Component design, state management, rendering |
+| `nodejs` | Event-driven I/O, streams, scaling |
+| `system_design` | Distributed systems, scalability, caching |
+| `dsa` | Complexity, sorting, trees, graphs, DP |
+| `databases` | SQL vs NoSQL, indexing, transactions |
+| `devops` | Docker, Kubernetes, CI/CD, monitoring |
+| `ml` | Model training, evaluation, deployment, MLOps |
 
 ## API Reference
 
-### Core Endpoints
+| Endpoint | Method | Auth required | Description |
+|----------|--------|--------------|-------------|
+| `/api/health` | GET | — | Health check |
+| `/api/github/profile?username=<u>` | GET | — | Fetch user's repos |
+| `/api/interviews` | POST | — (5/hour rate limit) | Start interview |
+| `/api/interviews/{id}` | GET | — | Get status & transcript |
+| `/api/interviews/{id}/message` | POST | Owner if signed in | Submit answer |
+| `/api/interviews/{id}/complete` | POST | Owner if signed in | Score & complete |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/github/profile?username=<user>` | GET | Fetch user's repositories |
-| `/api/interviews` | POST | Start new interview |
-| `/api/interviews/{id}` | GET | Get interview status & transcript |
-| `/api/interviews/{id}/message` | POST | Submit answer, get next question |
-| `/api/interviews/{id}/complete` | POST | Complete interview & get score |
+### Examples
 
-### Request Examples
-
-**Create an interview**
+**GitHub-based interview**
 ```bash
 curl -X POST http://localhost:8000/api/interviews \
   -H 'Content-Type: application/json' \
-  -d '{
-    "github_url": "https://github.com/username/repo",
-    "interview_type": "swe"
-  }'
+  -d '{"github_url": "https://github.com/username", "interview_type": "swe"}'
+```
+
+**Skill-based interview**
+```bash
+curl -X POST http://localhost:8000/api/interviews \
+  -H 'Content-Type: application/json' \
+  -d '{"skill": "system_design"}'
 ```
 
 **Submit an answer**
 ```bash
 curl -X POST http://localhost:8000/api/interviews/{id}/message \
   -H 'Content-Type: application/json' \
-  -d '{"content": "Your answer here..."}'
-```
-
-**Get interview results**
-```bash
-curl http://localhost:8000/api/interviews/{id}
+  -d '{"content": "Your answer here…"}'
 ```
 
 Full interactive docs at `http://localhost:8000/docs`
@@ -150,68 +146,62 @@ Full interactive docs at `http://localhost:8000/docs`
 ```
 .
 ├── backend/
-│   ├── main.py                 # FastAPI app entry point
-│   ├── routers/
-│   │   ├── interviews.py       # Interview CRUD & messaging
-│   │   ├── github_router.py    # GitHub profile fetching
-│   │   └── ai.py               # Groq LLM integration
-│   ├── models.py               # SQLAlchemy models
-│   ├── schema.sql              # Supabase schema
-│   ├── requirements.txt         # Python dependencies
-│   └── Procfile                # Heroku deployment config
+│   ├── main.py                 # FastAPI app, CORS, rate-limit handler
+│   ├── auth.py                 # Supabase JWT decode + access guard
+│   ├── limiter.py              # slowapi Limiter instance
+│   ├── db.py                   # SQLAlchemy engine + session
+│   ├── models.py               # ORM models (User, Interview, Message)
+│   ├── schemas.py              # Pydantic request/response schemas
+│   ├── schema.sql              # Supabase SQL editor schema
+│   ├── requirements.txt
+│   ├── Procfile                # Heroku web dyno
+│   └── routers/
+│       ├── interviews.py       # Interview CRUD, Q&A loop, scoring
+│       ├── github_router.py    # GitHub REST API fetch
+│       └── ai.py               # Groq LLM calls (questions + scoring)
 │
-├── frontend/
-│   ├── pages/
-│   │   ├── index.tsx           # Landing page
-│   │   ├── interview/[id].tsx  # Interview chat UI
-│   │   └── results/[id].tsx    # Results & transcript
-│   ├── lib/
-│   │   ├── api.ts              # Typed API client
-│   │   └── supabase.ts         # Supabase client
-│   ├── package.json            # Node dependencies
-│   └── tsconfig.json           # TypeScript config
-│
-└── README.md                    # This file
+└── frontend/
+    ├── pages/
+    │   ├── index.tsx           # Landing — GitHub / skill mode toggle
+    │   ├── interview/[id].tsx  # Live chat UI
+    │   └── results/[id].tsx    # Score, feedback, transcript, share
+    └── lib/
+        ├── api.ts              # Typed Axios client + JWT interceptor
+        └── supabase.ts         # Supabase client (null-safe)
 ```
 
-## Development
+## Environment Variables
 
-### Code Style
-- Python: PEP 8, enforced via `flake8`
-- TypeScript: ESLint + Prettier
-- Use meaningful variable/function names; minimal comments
+**Backend (`backend/.env`)**
 
-### Key Decisions
-- **Interview flow**: Fixed 5-question loop for consistency
-- **LLM backend**: Groq (fast, free tier sufficient)
-- **Frontend routing**: Pages Router (simpler than App Router for this phase)
-- **Database**: PostgreSQL via Supabase (relational, serverless)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Yes | Free at console.groq.com |
+| `DATABASE_URL` | No | Supabase connection string; SQLite used locally if unset |
+| `SUPABASE_JWT_SECRET` | No | Enables per-user auth on interview endpoints (Supabase → Settings → API → JWT Secret) |
+| `FRONTEND_ORIGIN` | No | Production frontend URL added to CORS allowlist |
+| `SENTRY_DSN` | No | Error tracking (Phase 3) |
+| `GROQ_QUESTION_MODEL` | No | Default: `llama-3.1-8b-instant` |
+| `GROQ_SCORING_MODEL` | No | Default: `llama-3.3-70b-versatile` |
 
-### Environment Variables
+**Frontend (`frontend/.env.local`)**
 
-**Backend (.env)**
-```
-GROQ_API_KEY=your_key_here
-GROQ_QUESTION_MODEL=mixtral-8x7b-32768
-GROQ_SCORING_MODEL=llama-3.3-70b-versatile
-DATABASE_URL=postgresql://...  # Optional; SQLite used if not set
-GITHUB_TOKEN=optional_github_pat
-FRONTEND_ORIGIN=http://localhost:3000
-```
-
-**Frontend (.env.local)**
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_SUPABASE_URL=https://...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | No | Backend URL; defaults to `http://localhost:8000` |
+| `NEXT_PUBLIC_SUPABASE_URL` | No | Enables Google sign-in |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | Enables Google sign-in |
 
 ## Roadmap
 
-- [x] Phase 1: Backend core (GitHub scraping, interview Q&A, AI scoring)
-- [x] Phase 2: Frontend (interview flow, results page)
-- [ ] Phase 3: Production deployment (Heroku + Vercel + custom domain)
-- [ ] Phase 4: Revenue features (SEO pages, blog, AdSense integration)
+- [x] Phase 1 — Backend: interview flow, GitHub fetch, AI scoring
+- [x] Phase 2 — Frontend: landing, chat UI, results page
+- [x] Skill-based interview mode (no GitHub needed)
+- [x] Security hardening: rate limiting, JWT auth, async Groq calls
+- [ ] User test gate: 5 complete self-interviews on localhost
+- [ ] Supabase: run `schema.sql`, enable Google OAuth provider
+- [ ] Phase 3 — Deploy: Heroku + Vercel + custom domain + Sentry
+- [ ] Phase 4 — Revenue: SEO practice pages, blog, AdSense (~week 9)
 
 ## Deployment
 
@@ -219,47 +209,32 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```bash
 heroku create your-app-name
 heroku config:set GROQ_API_KEY=your_key
+heroku config:set DATABASE_URL=your_supabase_connection_string
+heroku config:set FRONTEND_ORIGIN=https://your-vercel-domain.vercel.app
+heroku config:set SUPABASE_JWT_SECRET=your_jwt_secret
 git push heroku main
 ```
 
-`Procfile` is included for auto-detection. Set Config Vars for all environment variables.
-
 ### Frontend (Vercel)
 ```bash
-npm install -g vercel
-vercel
+npx vercel
 ```
-
-Set Environment Variables in Vercel dashboard matching `.env.local.example`.
+Set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the Vercel dashboard.
 
 ### Database (Supabase)
-1. Create Supabase project
-2. Run `backend/schema.sql` in SQL editor
-3. Set `DATABASE_URL` in backend env vars
-4. Configure Google OAuth in Supabase Auth settings
-
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m 'Add feature'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Open a Pull Request
+1. Create a Supabase project
+2. Run `backend/schema.sql` in the SQL editor
+3. Enable Google OAuth under Authentication → Providers
+4. Copy the connection string (transaction pooler, port 6543) into `DATABASE_URL`
+5. Copy the JWT Secret into `SUPABASE_JWT_SECRET`
 
 ## License
 
-MIT License — see LICENSE file for details
-
-## Support
-
-- 📧 Issues: Open a GitHub issue
-- 💬 Questions: Create a discussion
+MIT — see LICENSE for details.
 
 ## Acknowledgments
 
-- Built with [Groq](https://groq.com) for fast LLM inference
-- GitHub Student Pack for free infra
-- [Supabase](https://supabase.com) for serverless PostgreSQL
+- [Groq](https://groq.com) for fast, free LLM inference
+- [Supabase](https://supabase.com) for serverless PostgreSQL and auth
+- GitHub Student Pack for zero-cost infra
 - [FastAPI](https://fastapi.tiangolo.com) and [Next.js](https://nextjs.org) communities
