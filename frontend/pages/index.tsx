@@ -20,6 +20,7 @@ const SKILLS = [
   { value: "dsa",           label: "DSA" },
   { value: "databases",     label: "Databases" },
   { value: "devops",        label: "DevOps" },
+  { value: "ml",            label: "Machine Learning" },
 ];
 
 type Mode = "github" | "skill";

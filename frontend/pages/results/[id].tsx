@@ -29,7 +29,7 @@ export default function ResultsPage() {
 
   async function share() {
     const url = window.location.href;
-    const text = `I scored ${interview?.score}/10 on an AI mock interview based on my real GitHub projects. Try it:`;
+    const text = `I scored ${interview?.score}/10 on an AI mock interview on InterviewAI. Try it:`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "My InterviewAI result", text, url });

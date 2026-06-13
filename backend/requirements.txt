@@ -7,3 +7,5 @@ sqlalchemy==2.0.31
 psycopg2-binary==2.9.9
 pydantic==2.8.2
 sentry-sdk[fastapi]==2.8.0
+slowapi==0.1.10
+PyJWT==2.9.0

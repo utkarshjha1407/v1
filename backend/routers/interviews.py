@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+import asyncio
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 import models
 import schemas
+from auth import check_interview_access, get_caller_user_id
 from db import get_db
+from limiter import limiter
 from routers import ai
 from routers.github_router import fetch_repos, username_from_url
 
@@ -25,9 +30,18 @@ def _history(interview: models.Interview) -> list[dict]:
 
 @router.post("", response_model=schemas.InterviewCreated)
 @router.post("/", response_model=schemas.InterviewCreated, include_in_schema=False)
-async def create_interview(payload: schemas.InterviewCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/hour")
+async def create_interview(
+    request: Request,
+    payload: schemas.InterviewCreate,
+    db: Session = Depends(get_db),
+    caller_id: Optional[str] = Depends(get_caller_user_id),
+):
     if not payload.github_url and not payload.skill:
         raise HTTPException(status_code=422, detail="Provide either a GitHub URL or a skill")
+
+    # Prefer identity from the verified JWT over the client-supplied field.
+    effective_user_id = caller_id or payload.user_id
 
     if payload.github_url:
         username = username_from_url(payload.github_url)
@@ -38,21 +52,21 @@ async def create_interview(payload: schemas.InterviewCreate, db: Session = Depen
                 detail="No public non-fork repos found — interview needs projects to discuss",
             )
         github_meta = {"username": username, "repos": repos}
-        question = ai.next_question(repos, [], payload.interview_type)
+        question = await asyncio.to_thread(ai.next_question, repos, [], payload.interview_type)
     else:
         github_meta = {"skill": payload.skill}
-        question = ai.skill_question(payload.skill, [], payload.interview_type)
+        question = await asyncio.to_thread(ai.skill_question, payload.skill, [], payload.interview_type)
 
-    if payload.user_id:
-        user = db.get(models.User, payload.user_id)
+    if effective_user_id:
+        user = db.get(models.User, effective_user_id)
         if not user:
-            db.add(models.User(id=payload.user_id, github_url=payload.github_url))
+            db.add(models.User(id=effective_user_id, github_url=payload.github_url))
         elif payload.github_url and not user.github_url:
             user.github_url = payload.github_url
         db.flush()
 
     interview = models.Interview(
-        user_id=payload.user_id,
+        user_id=effective_user_id,
         github_meta=github_meta,
         interview_type=payload.interview_type,
     )
@@ -71,8 +85,15 @@ def get_interview(interview_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/{interview_id}/message", response_model=schemas.NextQuestion)
-def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = Depends(get_db)):
+def send_message(
+    interview_id: str,
+    payload: schemas.MessageIn,
+    db: Session = Depends(get_db),
+    caller_id: Optional[str] = Depends(get_caller_user_id),
+):
     interview = _get_interview(db, interview_id)
+    check_interview_access(interview.user_id, caller_id)
+
     if interview.status != "in_progress":
         raise HTTPException(status_code=409, detail="Interview is already completed")
 
@@ -107,8 +128,14 @@ def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = De
 
 
 @router.post("/{interview_id}/complete", response_model=schemas.ScoreOut)
-def complete_interview(interview_id: str, db: Session = Depends(get_db)):
+def complete_interview(
+    interview_id: str,
+    db: Session = Depends(get_db),
+    caller_id: Optional[str] = Depends(get_caller_user_id),
+):
     interview = _get_interview(db, interview_id)
+    check_interview_access(interview.user_id, caller_id)
+
     if interview.status == "completed":
         return schemas.ScoreOut(score=interview.score, feedback=interview.feedback)
 

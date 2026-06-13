@@ -4,6 +4,8 @@ import sentry_sdk
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ if os.getenv("SENTRY_DSN"):
 from db import Base, engine  # noqa: E402
 import models  # noqa: E402, F401  — registers tables on Base
 from routers import github_router, interviews  # noqa: E402
+from limiter import limiter  # noqa: E402
 
 try:
     Base.metadata.create_all(bind=engine)
@@ -20,6 +23,8 @@ except Exception as e:
     print(f"[warning] Could not run create_all — DB may be unreachable at startup: {e}")
 
 app = FastAPI(title="InterviewAI API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Production domain gets added here in Phase 3 (set FRONTEND_ORIGIN on Heroku).
 allowed_origins = ["http://localhost:3000"]
