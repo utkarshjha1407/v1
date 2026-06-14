@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Optional
 
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, Field
 
 # Coerces UUID objects (returned by psycopg2 for uuid columns) to str
 UUIDStr = Annotated[str, BeforeValidator(str)]
@@ -20,7 +20,9 @@ class InterviewCreated(BaseModel):
 
 
 class MessageIn(BaseModel):
-    content: str
+    # Cap answer length: bounds Groq latency/cost growth across the 5 questions
+    # and closes a large-payload abuse vector.
+    content: str = Field(min_length=1, max_length=8000)
 
 
 class MessageOut(BaseModel):

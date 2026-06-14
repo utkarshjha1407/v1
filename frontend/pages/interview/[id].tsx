@@ -45,15 +45,34 @@ export default function InterviewPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!id || !answer.trim() || busy) return;
+    const text = answer.trim();
+    if (!id || !text || busy) return;
     setBusy(true);
     setError(null);
+
+    // Optimistically show the user's answer immediately — no wait for the server.
+    setInterview((prev) =>
+      prev ? { ...prev, messages: [...prev.messages, { role: "user", content: text }] } : prev
+    );
+    setAnswer("");
+
     try {
-      await sendAnswer(id, answer.trim());
-      setAnswer("");
-      setInterview(await getInterview(id));
+      const next = await sendAnswer(id, text);
+      // Append the next question, but skip the "that was the last question" sentinel
+      // (it isn't a real question and isn't persisted server-side).
+      setInterview((prev) => {
+        if (!prev) return prev;
+        const assistantCount = prev.messages.filter((m) => m.role === "assistant").length;
+        if (assistantCount >= TOTAL_QUESTIONS) return prev;
+        return { ...prev, messages: [...prev.messages, { role: "assistant", content: next.question }] };
+      });
     } catch (err) {
       setError(errorMessage(err));
+      // Roll back the optimistic answer and restore the textarea on failure.
+      setInterview((prev) =>
+        prev ? { ...prev, messages: prev.messages.slice(0, -1) } : prev
+      );
+      setAnswer(text);
     } finally {
       setBusy(false);
     }

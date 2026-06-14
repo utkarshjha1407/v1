@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 import models
 import schemas
@@ -39,6 +39,11 @@ async def create_interview(
 ):
     if not payload.github_url and not payload.skill:
         raise HTTPException(status_code=422, detail="Provide either a GitHub URL or a skill")
+
+    # Restrict skill mode to the known allowlist — an arbitrary skill string would
+    # otherwise be injected straight into the LLM system prompt.
+    if payload.skill and payload.skill.lower() not in ai.SKILL_TOPICS:
+        raise HTTPException(status_code=422, detail="Unknown skill")
 
     # Prefer identity from the verified JWT over the client-supplied field.
     effective_user_id = caller_id or payload.user_id
@@ -91,15 +96,25 @@ def send_message(
     db: Session = Depends(get_db),
     caller_id: Optional[str] = Depends(get_caller_user_id),
 ):
-    interview = _get_interview(db, interview_id)
+    # Load interview + its messages in one shot so we don't lazy-reload later.
+    interview = (
+        db.query(models.Interview)
+        .options(selectinload(models.Interview.messages))
+        .filter(models.Interview.id == interview_id)
+        .first()
+    )
+    if interview is None:
+        raise HTTPException(status_code=404, detail="Interview not found")
     check_interview_access(interview.user_id, caller_id)
 
     if interview.status != "in_progress":
         raise HTTPException(status_code=409, detail="Interview is already completed")
 
+    # Build the LLM history from already-loaded messages + the new answer,
+    # without a round-trip to re-read it back.
+    history = _history(interview)
+    history.append({"role": "user", "content": payload.content})
     db.add(models.Message(interview_id=interview.id, role="user", content=payload.content))
-    db.flush()
-    db.refresh(interview)
 
     asked = sum(1 for m in interview.messages if m.role == "assistant")
     if asked >= QUESTIONS_PER_INTERVIEW:
@@ -114,9 +129,9 @@ def send_message(
     skill = meta.get("skill")
     repos = meta.get("repos", [])
     if skill:
-        question = ai.skill_question(skill, _history(interview), interview.interview_type)
+        question = ai.skill_question(skill, history, interview.interview_type)
     else:
-        question = ai.next_question(repos, _history(interview), interview.interview_type)
+        question = ai.next_question(repos, history, interview.interview_type)
     db.add(models.Message(interview_id=interview.id, role="assistant", content=question))
     db.commit()
 
