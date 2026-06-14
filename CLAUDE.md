@@ -9,8 +9,8 @@ then a 0–10 score with feedback. Solo project following a revenue-first plan
 
 - [x] Phase 1 — Backend (FastAPI): all endpoints built and flow-tested
 - [x] Phase 2 — Frontend (Next.js): full interview flow, production build passes
-- [ ] User test gate: 5 complete self-interviews on localhost
-- [ ] Supabase project: schema + Google OAuth (run `backend/schema.sql`)
+- [x] User test gate: 5 complete self-interviews on localhost
+- [x] Supabase project: schema + Google OAuth (run `backend/schema.sql`)
 - [ ] Phase 3 — Deploy: Heroku (backend) + Vercel (frontend) + Name.com domain + Sentry
 - [ ] Phase 4 — Revenue: 6 SEO `/practice/[topic]` pages, 12 blog posts,
       privacy/about/contact pages, sitemap, Search Console, AdSense (apply ~week 9)
