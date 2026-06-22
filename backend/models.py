@@ -27,6 +27,7 @@ class Interview(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     github_meta = Column(JSON)
     interview_type = Column(Text, default="swe")
+    mode = Column(Text, default="text")  # 'text' | 'voice'
     status = Column(Text, default="in_progress")  # 'in_progress' | 'completed'
     score = Column(Integer, nullable=True)
     feedback = Column(Text, nullable=True)

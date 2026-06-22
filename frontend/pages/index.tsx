@@ -9,10 +9,16 @@ const INTERVIEW_TYPES = [
   { value: "dsa", label: "DSA", blurb: "Algorithms and data structures, anchored in your code" },
 ];
 
+const INTERVIEW_MODES = [
+  { value: "text" as const, label: "Text", blurb: "Type your answers" },
+  { value: "voice" as const, label: "Voice", blurb: "Speak your answers, hear the questions" },
+];
+
 export default function Home() {
   const router = useRouter();
   const [githubUrl, setGithubUrl] = useState("");
   const [interviewType, setInterviewType] = useState("swe");
+  const [mode, setMode] = useState<"text" | "voice">("text");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>(undefined);
@@ -27,7 +33,15 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const { interview_id } = await createInterview(githubUrl.trim(), interviewType, userId);
+      const { interview_id, audio_base64 } = await createInterview(
+        githubUrl.trim(),
+        interviewType,
+        userId,
+        mode
+      );
+      if (mode === "voice" && audio_base64) {
+        sessionStorage.setItem(`interview-audio-${interview_id}`, audio_base64);
+      }
       router.push(`/interview/${interview_id}`);
     } catch (err) {
       setError(errorMessage(err));
@@ -77,6 +91,25 @@ export default function Home() {
               >
                 <span className="block font-semibold">{t.label}</span>
                 <span className="block text-sm text-slate-500">{t.blurb}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {INTERVIEW_MODES.map((m) => (
+              <button
+                type="button"
+                key={m.value}
+                onClick={() => setMode(m.value)}
+                disabled={loading}
+                className={`rounded-lg border px-4 py-3 text-left transition ${
+                  mode === m.value
+                    ? "border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600"
+                    : "border-slate-300 bg-white hover:border-slate-400"
+                }`}
+              >
+                <span className="block font-semibold">{m.label}</span>
+                <span className="block text-sm text-slate-500">{m.blurb}</span>
               </button>
             ))}
           </div>

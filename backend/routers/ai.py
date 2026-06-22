@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -9,6 +10,9 @@ from groq import Groq
 # Note: the plan's llama-3.1-70b-versatile was retired by Groq; 3.3 is its successor.
 QUESTION_MODEL = os.getenv("GROQ_QUESTION_MODEL", "llama-3.1-8b-instant")
 SCORING_MODEL = os.getenv("GROQ_SCORING_MODEL", "llama-3.3-70b-versatile")
+TRANSCRIPTION_MODEL = os.getenv("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo")
+TTS_MODEL = os.getenv("GROQ_TTS_MODEL", "playai-tts")
+TTS_VOICE = os.getenv("GROQ_TTS_VOICE", "Fritz-PlayAI")
 
 _client = None
 
@@ -66,3 +70,29 @@ def score_interview(history: list) -> dict:
     result = json.loads(resp.choices[0].message.content)
     score = max(0, min(10, int(result.get("score", 0))))
     return {"score": score, "feedback": str(result.get("feedback", ""))}
+
+
+def _transcribe_audio(audio_bytes: bytes, filename: str) -> str:
+    resp = get_client().audio.transcriptions.create(
+        model=TRANSCRIPTION_MODEL,
+        file=(filename, audio_bytes),
+    )
+    return resp.text.strip()
+
+
+async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
+    return await asyncio.to_thread(_transcribe_audio, audio_bytes, filename)
+
+
+def _synthesize_speech(text: str) -> bytes:
+    resp = get_client().audio.speech.create(
+        model=TTS_MODEL,
+        voice=TTS_VOICE,
+        input=text,
+        response_format="wav",
+    )
+    return resp.read()
+
+
+async def synthesize_speech(text: str) -> bytes:
+    return await asyncio.to_thread(_synthesize_speech, text)

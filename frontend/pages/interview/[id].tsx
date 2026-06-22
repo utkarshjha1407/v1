@@ -1,12 +1,14 @@
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Layout from "@/components/Layout";
+import VoiceInterview from "@/components/VoiceInterview";
 import {
   completeInterview,
   errorMessage,
   getInterview,
   Interview,
   sendAnswer,
+  sendVoiceAnswer,
 } from "@/lib/api";
 
 const TOTAL_QUESTIONS = 5;
@@ -19,10 +21,18 @@ export default function InterviewPage() {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [questionAudio, setQuestionAudio] = useState<string | null>(null);
+  const [voiceStarted, setVoiceStarted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
+    const key = `interview-audio-${id}`;
+    const stashedAudio = sessionStorage.getItem(key);
+    if (stashedAudio) {
+      setQuestionAudio(stashedAudio);
+      sessionStorage.removeItem(key);
+    }
     getInterview(id)
       .then((iv) => {
         if (iv.status === "completed") router.replace(`/results/${id}`);
@@ -48,6 +58,21 @@ export default function InterviewPage() {
     try {
       await sendAnswer(id, answer.trim());
       setAnswer("");
+      setInterview(await getInterview(id));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onVoiceRecorded(blob: Blob) {
+    if (!id || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await sendVoiceAnswer(id, blob);
+      setQuestionAudio(result.audio_base64 ?? null);
       setInterview(await getInterview(id));
     } catch (err) {
       setError(errorMessage(err));
@@ -99,7 +124,7 @@ export default function InterviewPage() {
           <div ref={bottomRef} />
         </div>
 
-        {interview && !allAnswered && awaitingAnswer && (
+        {interview && !allAnswered && awaitingAnswer && interview.mode === "text" && (
           <form onSubmit={onSubmit} className="mt-6 space-y-3">
             <textarea
               value={answer}
@@ -117,6 +142,19 @@ export default function InterviewPage() {
               {busy ? "Interviewer is thinking…" : "Submit answer"}
             </button>
           </form>
+        )}
+
+        {interview && !allAnswered && awaitingAnswer && interview.mode === "voice" && (
+          voiceStarted ? (
+            <VoiceInterview questionAudio={questionAudio} busy={busy} onRecorded={onVoiceRecorded} />
+          ) : (
+            <button
+              onClick={() => setVoiceStarted(true)}
+              className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500"
+            >
+              Start interview
+            </button>
+          )
         )}
 
         {interview && allAnswered && (

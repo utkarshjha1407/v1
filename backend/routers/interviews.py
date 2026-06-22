@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import base64
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 import models
@@ -23,44 +25,8 @@ def _history(interview: models.Interview) -> list[dict]:
     return [{"role": m.role, "content": m.content} for m in interview.messages]
 
 
-@router.post("", response_model=schemas.InterviewCreated)
-@router.post("/", response_model=schemas.InterviewCreated, include_in_schema=False)
-async def create_interview(payload: schemas.InterviewCreate, db: Session = Depends(get_db)):
-    username = username_from_url(payload.github_url)
-    repos = await fetch_repos(username)
-    if not repos:
-        raise HTTPException(
-            status_code=422,
-            detail="No public non-fork repos found — interview needs projects to discuss",
-        )
-
-    interview = models.Interview(
-        user_id=payload.user_id,
-        github_meta={"username": username, "repos": repos},
-        interview_type=payload.interview_type,
-    )
-    db.add(interview)
-    db.flush()
-
-    question = ai.next_question(repos, [], payload.interview_type)
-    db.add(models.Message(interview_id=interview.id, role="assistant", content=question))
-    db.commit()
-
-    return schemas.InterviewCreated(interview_id=interview.id, first_question=question)
-
-
-@router.get("/{interview_id}", response_model=schemas.InterviewOut)
-def get_interview(interview_id: str, db: Session = Depends(get_db)):
-    return _get_interview(db, interview_id)
-
-
-@router.post("/{interview_id}/message", response_model=schemas.NextQuestion)
-def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = Depends(get_db)):
-    interview = _get_interview(db, interview_id)
-    if interview.status != "in_progress":
-        raise HTTPException(status_code=409, detail="Interview is already completed")
-
-    db.add(models.Message(interview_id=interview.id, role="user", content=payload.content))
+def _advance_interview(db: Session, interview: models.Interview, content: str) -> schemas.NextQuestion:
+    db.add(models.Message(interview_id=interview.id, role="user", content=content))
     db.flush()
     db.refresh(interview)
 
@@ -82,6 +48,77 @@ def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = De
         question=question,
         question_number=asked + 1,
         is_final=asked + 1 >= QUESTIONS_PER_INTERVIEW,
+    )
+
+
+@router.post("", response_model=schemas.InterviewCreated)
+@router.post("/", response_model=schemas.InterviewCreated, include_in_schema=False)
+async def create_interview(payload: schemas.InterviewCreate, db: Session = Depends(get_db)):
+    username = username_from_url(payload.github_url)
+    repos = await fetch_repos(username)
+    if not repos:
+        raise HTTPException(
+            status_code=422,
+            detail="No public non-fork repos found — interview needs projects to discuss",
+        )
+
+    interview = models.Interview(
+        user_id=payload.user_id,
+        github_meta={"username": username, "repos": repos},
+        interview_type=payload.interview_type,
+        mode=payload.mode,
+    )
+    db.add(interview)
+    db.flush()
+
+    question = ai.next_question(repos, [], payload.interview_type)
+    db.add(models.Message(interview_id=interview.id, role="assistant", content=question))
+    db.commit()
+
+    audio_base64 = None
+    if payload.mode == "voice":
+        audio_base64 = base64.b64encode(await ai.synthesize_speech(question)).decode()
+
+    return schemas.InterviewCreated(
+        interview_id=interview.id, first_question=question, audio_base64=audio_base64
+    )
+
+
+@router.get("/{interview_id}", response_model=schemas.InterviewOut)
+def get_interview(interview_id: str, db: Session = Depends(get_db)):
+    return _get_interview(db, interview_id)
+
+
+@router.post("/{interview_id}/message", response_model=schemas.NextQuestion)
+def send_message(interview_id: str, payload: schemas.MessageIn, db: Session = Depends(get_db)):
+    interview = _get_interview(db, interview_id)
+    if interview.status != "in_progress":
+        raise HTTPException(status_code=409, detail="Interview is already completed")
+
+    return _advance_interview(db, interview, payload.content)
+
+
+@router.post("/{interview_id}/voice-message", response_model=schemas.VoiceMessageOut)
+async def send_voice_message(
+    interview_id: str, file: UploadFile, db: Session = Depends(get_db)
+):
+    interview = _get_interview(db, interview_id)
+    if interview.status != "in_progress":
+        raise HTTPException(status_code=409, detail="Interview is already completed")
+
+    transcript = await ai.transcribe_audio(await file.read(), file.filename)
+    next_q = _advance_interview(db, interview, transcript)
+
+    audio_base64 = None
+    if not next_q.is_final:
+        audio_base64 = base64.b64encode(await ai.synthesize_speech(next_q.question)).decode()
+
+    return schemas.VoiceMessageOut(
+        transcript=transcript,
+        question=next_q.question,
+        question_number=next_q.question_number,
+        is_final=next_q.is_final,
+        audio_base64=audio_base64,
     )
 
 

@@ -12,6 +12,7 @@ create table if not exists interviews (
   user_id uuid references users(id),
   github_meta jsonb,
   interview_type text default 'swe',
+  mode text default 'text',
   status text default 'in_progress',
   score int,
   feedback text,
