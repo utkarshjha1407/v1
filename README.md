@@ -4,6 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+**🚀 Live at [interviewai-beige.vercel.app](https://interviewai-beige.vercel.app)**
+
 ## Overview
 
 InterviewAI gives you two ways to practice:
@@ -198,28 +200,33 @@ Full interactive docs at `http://localhost:8000/docs`
 - [x] Phase 2 — Frontend: landing, chat UI, results page
 - [x] Skill-based interview mode (no GitHub needed)
 - [x] Security hardening: rate limiting, JWT auth, async Groq calls
-- [ ] User test gate: 5 complete self-interviews on localhost
-- [ ] Supabase: run `schema.sql`, enable Google OAuth provider
-- [ ] Phase 3 — Deploy: Heroku + Vercel + custom domain + Sentry
+- [x] User test gate: 5 complete self-interviews
+- [x] Supabase: schema, Google OAuth, auth trigger
+- [x] Phase 3 — Deployed: Railway (backend) + Vercel (frontend)
 - [ ] Phase 4 — Revenue: SEO practice pages, blog, AdSense (~week 9)
 
 ## Deployment
 
-### Backend (Heroku)
+### Current production setup
+| Service | Platform | URL |
+|---------|----------|-----|
+| Backend | Railway | `https://zealous-renewal-production-63ac.up.railway.app` |
+| Frontend | Vercel | `https://interviewai-beige.vercel.app` |
+| Database | Supabase | `ccmjkmltyaledfonbcon.supabase.co` |
+
+### Backend (Railway)
 ```bash
-heroku create your-app-name
-heroku config:set GROQ_API_KEY=your_key
-heroku config:set DATABASE_URL=your_supabase_connection_string
-heroku config:set FRONTEND_ORIGIN=https://your-vercel-domain.vercel.app
-heroku config:set SUPABASE_JWT_SECRET=your_jwt_secret
-git push heroku main
+npm install -g @railway/cli   # or: curl -fsSL cli.new/install | sh
+railway login
+cd backend && railway up
 ```
+Set env vars via `railway variables set KEY=value` — see `.env.example` for the full list.
 
 ### Frontend (Vercel)
 ```bash
-npx vercel
+cd frontend && npx vercel --prod
 ```
-Set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the Vercel dashboard.
+Set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as environment variables in the Vercel dashboard before deploying.
 
 ### Database (Supabase)
 1. Create a Supabase project
