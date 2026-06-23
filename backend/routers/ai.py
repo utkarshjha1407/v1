@@ -8,8 +8,8 @@ from groq import Groq
 QUESTION_MODEL = os.getenv("GROQ_QUESTION_MODEL", "llama-3.1-8b-instant")
 SCORING_MODEL = os.getenv("GROQ_SCORING_MODEL", "llama-3.3-70b-versatile")
 TRANSCRIPTION_MODEL = os.getenv("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo")
-TTS_MODEL = os.getenv("GROQ_TTS_MODEL", "playai-tts")
-TTS_VOICE = os.getenv("GROQ_TTS_VOICE", "Fritz-PlayAI")
+TTS_MODEL = os.getenv("GROQ_TTS_MODEL", "canopylabs/orpheus-v1-english")
+TTS_VOICE = os.getenv("GROQ_TTS_VOICE", "tara")
 
 _client = None
 

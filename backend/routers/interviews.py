@@ -47,6 +47,11 @@ def _advance_interview(db: Session, interview: models.Interview, content: str) -
     history = _history(interview)
     history.append({"role": "user", "content": content})
     db.add(models.Message(interview_id=interview.id, role="user", content=content))
+    # Commit this insert on its own: batching it with the assistant insert below
+    # in one flush hits a Postgres driver issue where SQLAlchemy's bulk-insert
+    # "sentinel" matching can't resolve server-generated UUID columns when 2+
+    # rows of the same table are inserted in a single statement.
+    db.commit()
 
     asked = sum(1 for m in interview.messages if m.role == "assistant")
     if asked >= QUESTIONS_PER_INTERVIEW:
@@ -176,9 +181,10 @@ async def send_voice_message(
     audio_bytes = await file.read()
     transcript = await ai.transcribe_audio(audio_bytes, file.filename or "answer.webm")
 
-    # _advance_interview does a blocking Groq call + DB commit; offload it so
-    # this async endpoint doesn't block the event loop (mirrors create_interview).
-    next_q = await asyncio.to_thread(_advance_interview, db, interview, transcript)
+    # Run directly (not via asyncio.to_thread): the request's SQLAlchemy Session
+    # is bound to this thread, and handing it to a different thread mid-request
+    # breaks Postgres's insert-sentinel result matching.
+    next_q = _advance_interview(db, interview, transcript)
 
     audio_base64 = None
     if not next_q.is_final:
