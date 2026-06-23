@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, BeforeValidator, Field
 
@@ -11,12 +11,14 @@ class InterviewCreate(BaseModel):
     github_url: Optional[str] = None
     skill: Optional[str] = None        # for skill-based mode (no GitHub needed)
     interview_type: str = "swe"        # 'swe' | 'dsa'
+    mode: Literal["text", "voice"] = "text"
     user_id: Optional[str] = None
 
 
 class InterviewCreated(BaseModel):
     interview_id: UUIDStr
     first_question: str
+    audio_base64: Optional[str] = None
 
 
 class MessageIn(BaseModel):
@@ -43,6 +45,7 @@ class NextQuestion(BaseModel):
 class InterviewOut(BaseModel):
     id: UUIDStr
     interview_type: str
+    mode: str
     status: str
     score: Optional[int] = None
     feedback: Optional[str] = None
@@ -56,3 +59,11 @@ class InterviewOut(BaseModel):
 class ScoreOut(BaseModel):
     score: int
     feedback: str
+
+
+class VoiceMessageOut(BaseModel):
+    transcript: str
+    question: str
+    question_number: int
+    is_final: bool
+    audio_base64: Optional[str] = None

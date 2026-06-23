@@ -24,10 +24,12 @@ const SKILLS = [
 ];
 
 type Mode = "github" | "skill";
+type VoiceMode = "text" | "voice";
 
 export default function Home() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("github");
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>("text");
   const [githubUrl, setGithubUrl] = useState("");
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [interviewType, setInterviewType] = useState("swe");
@@ -50,7 +52,15 @@ export default function Home() {
         mode === "github"
           ? { githubUrl: githubUrl.trim() }
           : { skill: selectedSkill! };
-      const { interview_id } = await createInterview(options, interviewType, userId);
+      const { interview_id, audio_base64 } = await createInterview(
+        options,
+        interviewType,
+        userId,
+        voiceMode
+      );
+      if (audio_base64) {
+        sessionStorage.setItem(`interview-audio-${interview_id}`, audio_base64);
+      }
       router.push(`/interview/${interview_id}`);
     } catch (err) {
       setError(errorMessage(err));
@@ -88,6 +98,25 @@ export default function Home() {
               }`}
             >
               {m === "github" ? "From GitHub" : "By Skill"}
+            </button>
+          ))}
+        </div>
+
+        {/* Voice toggle */}
+        <div className="mt-3 inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+          {(["text", "voice"] as VoiceMode[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setVoiceMode(v)}
+              disabled={loading}
+              className={`rounded-md px-5 py-2 text-sm font-semibold transition ${
+                voiceMode === v
+                  ? "bg-indigo-600 text-white shadow"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {v === "text" ? "Text interview" : "Voice interview"}
             </button>
           ))}
         </div>

@@ -12,6 +12,7 @@ create table if not exists interviews (
   user_id uuid references users(id),
   github_meta jsonb,
   interview_type text default 'swe',
+  mode text default 'text',
   status text default 'in_progress',
   score int,
   feedback text,
@@ -28,6 +29,10 @@ create table if not exists messages (
 
 create index if not exists idx_messages_interview on messages(interview_id);
 create index if not exists idx_interviews_user on interviews(user_id);
+
+-- Already deployed and ran the create table above before voice mode existed?
+-- `create table if not exists` won't add the new column, so run this too:
+alter table interviews add column if not exists mode text default 'text';
 
 -- Sync Google sign-ins from auth.users → public.users automatically.
 -- Run this after the tables above. Supabase Auth manages auth.users;

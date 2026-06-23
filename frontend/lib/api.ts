@@ -26,6 +26,7 @@ export interface ChatMessage {
 export interface Interview {
   id: string;
   interview_type: string;
+  mode: "text" | "voice";
   status: "in_progress" | "completed";
   score: number | null;
   feedback: string | null;
@@ -39,15 +40,25 @@ export interface NextQuestion {
   is_final: boolean;
 }
 
+export interface VoiceMessageOut {
+  transcript: string;
+  question: string;
+  question_number: number;
+  is_final: boolean;
+  audio_base64: string | null;
+}
+
 export async function createInterview(
   options: { githubUrl?: string; skill?: string },
   interviewType: string,
-  userId?: string
-): Promise<{ interview_id: string; first_question: string }> {
+  userId?: string,
+  mode: "text" | "voice" = "text"
+): Promise<{ interview_id: string; first_question: string; audio_base64: string | null }> {
   const { data } = await api.post("/api/interviews", {
     github_url: options.githubUrl ?? null,
     skill: options.skill ?? null,
     interview_type: interviewType,
+    mode,
     user_id: userId ?? null,
   });
   return data;
@@ -60,6 +71,15 @@ export async function getInterview(id: string): Promise<Interview> {
 
 export async function sendAnswer(id: string, content: string): Promise<NextQuestion> {
   const { data } = await api.post(`/api/interviews/${id}/message`, { content });
+  return data;
+}
+
+export async function sendVoiceAnswer(id: string, audio: Blob): Promise<VoiceMessageOut> {
+  const form = new FormData();
+  form.append("file", audio, "answer.webm");
+  const { data } = await api.post(`/api/interviews/${id}/voice-message`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 
