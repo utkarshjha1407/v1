@@ -1,9 +1,13 @@
 import asyncio
+import base64
 import json
+import logging
 import os
 
 from fastapi import HTTPException
 from groq import Groq
+
+logger = logging.getLogger(__name__)
 
 QUESTION_MODEL = os.getenv("GROQ_QUESTION_MODEL", "llama-3.1-8b-instant")
 SCORING_MODEL = os.getenv("GROQ_SCORING_MODEL", "llama-3.3-70b-versatile")
@@ -129,3 +133,18 @@ def _synthesize_speech(text: str) -> bytes:
 
 async def synthesize_speech(text: str) -> bytes:
     return await asyncio.to_thread(_synthesize_speech, text)
+
+
+async def safe_synthesize_speech(text: str) -> str | None:
+    """Synthesize speech and return base64 WAV, or None if TTS is unavailable.
+
+    Voice questions are an enhancement on top of the text the candidate always
+    sees, so a TTS outage (e.g. the Groq model needing org terms acceptance)
+    must not 500 the turn and lose the candidate's spoken answer.
+    """
+    try:
+        audio = await synthesize_speech(text)
+        return base64.b64encode(audio).decode()
+    except Exception:
+        logger.warning("TTS synthesis failed; degrading to text-only question", exc_info=True)
+        return None

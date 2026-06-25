@@ -1,5 +1,4 @@
 import asyncio
-import base64
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
@@ -135,7 +134,7 @@ async def create_interview(
 
     audio_base64 = None
     if payload.mode == "voice":
-        audio_base64 = base64.b64encode(await ai.synthesize_speech(question)).decode()
+        audio_base64 = await ai.safe_synthesize_speech(question)
 
     return schemas.InterviewCreated(
         interview_id=interview.id, first_question=question, audio_base64=audio_base64
@@ -188,7 +187,7 @@ async def send_voice_message(
 
     audio_base64 = None
     if not next_q.is_final:
-        audio_base64 = base64.b64encode(await ai.synthesize_speech(next_q.question)).decode()
+        audio_base64 = await ai.safe_synthesize_speech(next_q.question)
 
     return schemas.VoiceMessageOut(
         transcript=transcript,
