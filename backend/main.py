@@ -26,14 +26,19 @@ app = FastAPI(title="InterviewAI API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Production domain gets added here in Phase 3 (set FRONTEND_ORIGIN on Heroku).
+# Allow localhost plus any explicitly configured frontend origins.
+# Vercel deployments commonly use different domains per project/branch, so
+# accept the common *.vercel.app pattern as well.
 allowed_origins = ["http://localhost:3000"]
-if os.getenv("FRONTEND_ORIGIN"):
-    allowed_origins.append(os.getenv("FRONTEND_ORIGIN"))
+for raw_origin in os.getenv("FRONTEND_ORIGIN", "").split(","):
+    origin = raw_origin.strip()
+    if origin:
+        allowed_origins.append(origin)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
