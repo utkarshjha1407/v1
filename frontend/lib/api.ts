@@ -1,8 +1,13 @@
 import axios from "axios";
 import { supabase } from "@/lib/supabase";
 
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:8000"
+    : "https://zealous-renewal-production-63ac.up.railway.app";
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL,
 });
 
 // Attach the Supabase JWT to every request when the user is signed in.

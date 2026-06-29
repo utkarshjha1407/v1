@@ -120,6 +120,9 @@ export default function Home() {
             </button>
           ))}
         </div>
+        <p className="mt-2 text-sm text-slate-500">
+          Voice mode uses your microphone. If recording is unavailable, the interview stays usable in text mode.
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4 text-left">
           {mode === "github" ? (

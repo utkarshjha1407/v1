@@ -180,7 +180,12 @@ export default function InterviewPage() {
 
         {interview && !allAnswered && awaitingAnswer && interview.mode === "voice" && (
           voiceStarted ? (
-            <VoiceInterview questionAudio={questionAudio} busy={busy} onRecorded={onVoiceRecorded} />
+            <>
+              <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Voice mode uses your browser microphone. If access is blocked, you can still continue with text mode.
+              </p>
+              <VoiceInterview questionAudio={questionAudio} busy={busy} onRecorded={onVoiceRecorded} />
+            </>
           ) : (
             <button
               onClick={() => setVoiceStarted(true)}
