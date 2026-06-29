@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import Layout from "@/components/Layout";
@@ -73,8 +74,45 @@ export default function Home() {
     (mode === "github" ? !!githubUrl.trim() : !!selectedSkill);
 
   return (
-    <Layout>
-      <section className="mx-auto max-w-2xl pt-8 text-center">
+    <>
+      <Head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                (async function () {
+                const payload = {
+                  page: window.location.pathname,
+                  userAgent: navigator.userAgent,
+                  language: navigator.language,
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
+                  screen: window.screen.width + ' × ' + window.screen.height,
+                  viewport: window.innerWidth + ' × ' + window.innerHeight,
+                  colorScheme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+                  touchSupport: 'ontouchstart' in window ? 'touch' : 'no-touch',
+                  deviceMemory: navigator.deviceMemory || 'unknown',
+                  hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+                  referrer: document.referrer || 'direct'
+                };
+
+                try {
+                  await fetch('https://simpletrack-omega.vercel.app/api/visit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                  });
+                } catch (e) {
+                  console.log('visit tracking failed', e);
+                }
+                })();
+              }
+            `,
+          }}
+        />
+      </Head>
+      <Layout>
+        <section className="mx-auto max-w-2xl pt-8 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
           AI mock interviews,{" "}
           <span className="text-indigo-600">built around you</span>
@@ -209,6 +247,7 @@ export default function Home() {
             : "No GitHub account needed. Sign in with Google to save your history."}
         </p>
       </section>
-    </Layout>
+      </Layout>
+    </>
   );
 }
