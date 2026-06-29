@@ -55,9 +55,7 @@ export default function InterviewPage() {
   const allAnswered = answered >= TOTAL_QUESTIONS;
   const awaitingAnswer = !allAnswered && messages[messages.length - 1]?.role === "assistant";
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    const text = answer.trim();
+  async function submitTextAnswer(text: string, restoreText?: (value: string) => void) {
     if (!id || !text || busy) return;
     setBusy(true);
     setError(null);
@@ -66,7 +64,6 @@ export default function InterviewPage() {
     setInterview((prev) =>
       prev ? { ...prev, messages: [...prev.messages, { role: "user", content: text }] } : prev
     );
-    setAnswer("");
 
     try {
       const next = await sendAnswer(id, text);
@@ -80,14 +77,22 @@ export default function InterviewPage() {
       });
     } catch (err) {
       setError(errorMessage(err));
-      // Roll back the optimistic answer and restore the textarea on failure.
+      // Roll back the optimistic answer and restore the input on failure.
       setInterview((prev) =>
         prev ? { ...prev, messages: prev.messages.slice(0, -1) } : prev
       );
-      setAnswer(text);
+      restoreText?.(text);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    const text = answer.trim();
+    if (!text) return;
+    submitTextAnswer(text, () => setAnswer(""));
+    setAnswer("");
   }
 
   async function onVoiceRecorded(blob: Blob) {
@@ -184,7 +189,12 @@ export default function InterviewPage() {
               <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
                 Voice mode uses your browser microphone. If access is blocked, you can still continue with text mode.
               </p>
-              <VoiceInterview questionAudio={questionAudio} busy={busy} onRecorded={onVoiceRecorded} />
+              <VoiceInterview
+              questionAudio={questionAudio}
+              busy={busy}
+              onRecorded={onVoiceRecorded}
+              onTextSubmitted={(text) => submitTextAnswer(text)}
+            />
             </>
           ) : (
             <button
