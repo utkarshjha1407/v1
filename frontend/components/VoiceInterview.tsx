@@ -10,7 +10,10 @@ function base64ToBlobUrl(base64: string, mimeType = "audio/wav"): string {
 const SUPPORTS_VOICE =
   typeof navigator !== "undefined" &&
   !!navigator.mediaDevices?.getUserMedia &&
-  typeof MediaRecorder !== "undefined";
+  typeof MediaRecorder !== "undefined" &&
+  (typeof window === "undefined"
+    ? true
+    : window.isSecureContext || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
 export default function VoiceInterview({
   questionAudio,
@@ -26,8 +29,9 @@ export default function VoiceInterview({
   const [recording, setRecording] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [manualMode, setManualMode] = useState(false);
+  const [manualMode, setManualMode] = useState(!SUPPORTS_VOICE);
   const [manualText, setManualText] = useState("");
+  const [permissionState, setPermissionState] = useState<"unknown" | "granted" | "denied" | "prompt">("unknown");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -41,8 +45,38 @@ export default function VoiceInterview({
     return () => URL.revokeObjectURL(url);
   }, [questionAudio]);
 
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
+    navigator.permissions
+      .query({ name: "microphone" as PermissionName })
+      .then((permission) => {
+        setPermissionState(permission.state as "unknown" | "granted" | "denied" | "prompt");
+        permission.onchange = () => {
+          setPermissionState(permission.state as "unknown" | "granted" | "denied" | "prompt");
+        };
+      })
+      .catch(() => setPermissionState("unknown"));
+  }, []);
+
   async function startRecording() {
     setMicError(null);
+
+    if (!SUPPORTS_VOICE) {
+      const reason =
+        typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+          ? "Microphone access requires a secure HTTPS connection. Please use the deployed site over HTTPS or open this app on localhost."
+          : "This browser does not support microphone recording. Please use text mode instead.";
+      setMicError(reason);
+      setManualMode(true);
+      return;
+    }
+
+    if (permissionState === "denied") {
+      setMicError("Microphone permission is blocked in this browser. You can continue by typing your answer instead.");
+      setManualMode(true);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -55,8 +89,15 @@ export default function VoiceInterview({
       mediaRecorderRef.current = recorder;
       recorder.start();
       setRecording(true);
-    } catch {
-      setMicError("Microphone access was denied. Allow microphone access to record your answer.");
+    } catch (err) {
+      const errorMessage =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Microphone access was denied. You can continue by typing your answer instead."
+          : err instanceof DOMException && err.name === "NotFoundError"
+            ? "No microphone was found. Please connect one and try again."
+            : "Could not start recording. You can continue by typing your answer instead.";
+      setMicError(errorMessage);
+      setManualMode(true);
     }
   }
 
@@ -75,7 +116,7 @@ export default function VoiceInterview({
     setMicError(null);
   }
 
-  const fallbackActive = !SUPPORTS_VOICE || manualMode || Boolean(micError);
+  const fallbackActive = !SUPPORTS_VOICE || manualMode || permissionState === "denied" || Boolean(micError);
 
   return (
     <div className="mt-6 space-y-3">
